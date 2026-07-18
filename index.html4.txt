@@ -1,115 +1,210 @@
-<style>
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Classifier</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .app-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .header {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 10px 0;
+            letter-spacing: 1px;
+        }
+
+        .subheader {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        #webcam-container {
+            margin: 20px auto;
+            border: 5px solid #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            display: inline-block;
+            overflow: hidden;
+            line-height: 0;
+        }
+
+        button {
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            color: white;
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #label-container {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .result-item {
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #eee;
+        }
+
+        .class-label {
+            font-weight: bold;
+            color: #333;
+            flex: 1;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .probability-bar-container {
+            background-color: #eee;
+            border-radius: 10px;
+            width: 50%;
+            height: 10px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+
+        .probability-bar-fill {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            height: 100%;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+
+        .probability-text {
+            color: #555;
+            font-weight: bold;
+            width: 50px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <h1 class="header">TEACHABLE MACHINE IMAGE CLASSIFIER</h1>
+    <div class="subheader">Teachable Machine Image Model</div>
+    
+    <button type="button" onclick="init()">START CLASSIFYING</button>
+    
+    <div>
+        <div id="webcam-container"></div>
+    </div>
+    
+    <div id="label-container"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script type="text/javascript">
+    // ลิงก์โมเดลเดิมของคุณ[cite: 1]
+    const URL = "https://teachablemachine.withgoogle.com/models/ajE7BXwcJ/";[cite: 1]
+
+    let model, webcam, labelContainer, maxPredictions;
+
+    async function init() {
+        const modelURL = URL + "model.json";[cite: 1]
+        const metadataURL = URL + "metadata.json";[cite: 1]
+
+        model = await tmImage.load(modelURL, metadataURL);[cite: 1]
+        maxPredictions = model.getTotalClasses();[cite: 1]
+
+        const flip = true; 
+        webcam = new tmImage.Webcam(200, 200, flip);[cite: 1]
+        await webcam.setup();[cite: 1]
+        await webcam.play();[cite: 1]
+        window.requestAnimationFrame(loop);[cite: 1]
+
+        // แสดงผลกล้อง
+        document.getElementById("webcam-container").innerHTML = "";
+        document.getElementById("webcam-container").appendChild(webcam.canvas);[cite: 1]
+        
+        // สร้างโครงสร้างแถบผลลัพธ์ล่วงหน้า (ทำครั้งเดียวเพื่อไม่ให้หน้าเว็บกระตุก)
+        labelContainer = document.getElementById("label-container");[cite: 1]
+        labelContainer.innerHTML = ""; 
+        for (let i = 0; i < maxPredictions; i++) {
+            const resultItem = document.createElement("div");
+            resultItem.className = "result-item";
+            resultItem.innerHTML = `
+                <span class="class-label" id="label-name-${i}">-</span>
+                <div class="probability-bar-container">
+                    <div class="probability-bar-fill" id="bar-fill-${i}"></div>
+                </div>
+                <span class="probability-text" id="prob-text-${i}">0%</span>
+            `;
+            labelContainer.appendChild(resultItem);
+        }
     }
 
-    .app-card {
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        padding: 40px;
-        width: 80%;
-        max-width: 900px;
-        text-align: center;
+    async function loop() {
+        webcam.update();[cite: 1]
+        await predict();[cite: 1]
+        window.requestAnimationFrame(loop);[cite: 1]
     }
 
-    .header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 10px;
-        text-transform: uppercase;
+    async function predict() {
+        const prediction = await model.predict(webcam.canvas);[cite: 1]
+        for (let i = 0; i < maxPredictions; i++) {
+            const className = prediction[i].className;[cite: 1]
+            const percentage = (prediction[i].probability * 100).toFixed(0);
+            
+            // อัปเดตข้อมูลลงในแถบที่สร้างไว้ล่วงหน้า (ห้ามลบแล้วสร้างใหม่ทุกเฟรม หน้าเว็บจะค้าง)
+            if(document.getElementById(`label-name-${i}`)) {
+                document.getElementById(`label-name-${i}`).innerText = className;
+                document.getElementById(`bar-fill-${i}`).style.width = percentage + "%";
+                document.getElementById(`prob-text-${i}`).innerText = percentage + "%";
+            }
+        }
     }
+</script>
 
-    .subheader {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 30px;
-    }
-
-    #webcam-container {
-        margin-top: 20px;
-        border: 5px solid #fff;
-        border-radius: 15px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        display: inline-block;
-        overflow: hidden;
-    }
-
-    button {
-        background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
-        border: none;
-        color: white;
-        padding: 15px 30px;
-        font-size: 1.2rem;
-        font-weight: bold;
-        border-radius: 30px;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-        transition: transform 0.2s, box-shadow 0.2s;
-        margin-bottom: 20px;
-    }
-
-    button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
-    }
-
-    button:active {
-        transform: translateY(1px);
-    }
-
-    #label-container {
-        margin-top: 30px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 15px;
-    }
-
-    /* สไตล์สำหรับ Progress Bar ของผลลัพธ์ */
-    .result-item {
-        background: #fff;
-        border-radius: 10px;
-        padding: 15px;
-        width: 100%;
-        max-width: 500px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .class-label {
-        font-weight: bold;
-        color: #333;
-        flex: 1;
-    }
-
-    .probability-bar-container {
-        background-color: #eee;
-        border-radius: 10px;
-        width: 150px;
-        height: 10px;
-        margin: 0 15px;
-        overflow: hidden;
-    }
-
-    .probability-bar-fill {
-        background: #4facfe;
-        height: 100%;
-        border-radius: 10px;
-    }
-
-    .probability-text {
-        color: #666;
-        width: 50px;
-        text-align: right;
-    }
-</style>
+</body>
+</html>
